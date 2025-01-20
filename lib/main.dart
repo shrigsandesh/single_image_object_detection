@@ -125,7 +125,9 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
 
   Future<void> loadModel() async {
     try {
-      interpreter = await Interpreter.fromAsset('assets/ml/pball_model.tflite');
+      // ignore: unnecessary_string_escapes
+      interpreter =
+          await Interpreter.fromAsset("assets/ml/fish_detection.tflite");
       setState(() {
         isLoading = false;
       });
@@ -260,7 +262,13 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
               Expanded(
                 child: Column(
                   children: [
-                    imageStack(1.0),
+                    // imageStack(1.0),
+
+                    Image.asset(
+                      'assets/images/proofball.png',
+                      height: 400,
+                      width: 400,
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       'Detections: ${detections.length}',
@@ -301,36 +309,36 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
     );
   }
 
-  Widget imageStack(double scale) {
-    return Offstage(
-      offstage: !isImageLoaded,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            constraints: BoxConstraints(
-              maxHeight: 0.6 * MediaQuery.of(context).size.height,
-              maxWidth: MediaQuery.of(context).size.width,
-            ),
-            child: Builder(
-              builder: (context) {
-                return Image(
-                  key: _imageKey,
-                  image: imageProvider!,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
+  // Widget imageStack(double scale) {
+  //   return Offstage(
+  //     offstage: !isImageLoaded,
+  //     child: Stack(
+  //       alignment: Alignment.center,
+  //       children: [
+  //         Container(
+  //           constraints: BoxConstraints(
+  //             maxHeight: 0.6 * MediaQuery.of(context).size.height,
+  //             maxWidth: MediaQuery.of(context).size.width,
+  //           ),
+  //           child: Builder(
+  //             builder: (context) {
+  //               return Image(
+  //                 key: _imageKey,
+  //                 image: imageProvider!,
+  //                 loadingBuilder: (context, child, loadingProgress) {
+  //                   if (loadingProgress == null) return child;
 
-                    return const CircularProgressIndicator();
-                  },
-                  alignment: Alignment.center,
-                  fit: BoxFit.contain,
-                );
-              },
-            ),
-          ),
-          if (pballRect != null) ProofBallBoundaryPainter(rect: pballRect!)
-        ],
-      ),
-    );
-  }
+  //                   return const CircularProgressIndicator();
+  //                 },
+  //                 alignment: Alignment.center,
+  //                 fit: BoxFit.contain,
+  //               );
+  //             },
+  //           ),
+  //         ),
+  //         if (pballRect != null) ProofBallBoundaryPainter(rect: pballRect!)
+  //       ],
+  //     ),
+  //   );
+  // }
 }
