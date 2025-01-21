@@ -90,21 +90,7 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
 
     imageOriginalHeight = info.image.height.toDouble();
     imageOriginalWidth = info.image.width.toDouble();
-    if (isImageLoaded && !isScaledToDevice && !invalidSize()) {
-      scaleX = imageDeviceWidth / imageOriginalWidth;
-      scaleY = imageDeviceHeight / imageOriginalHeight;
-    }
   }
-
-  bool invalidSize() {
-    return imageDeviceWidth == 0 ||
-        imageDeviceHeight == 0 ||
-        imageOriginalHeight == 0 ||
-        imageOriginalWidth == 0;
-  }
-
-  // Function to scale api points to relative device size
-  void scaleApiOffsetsToDeviceSize() {}
 
   void startRetryUntilSizeDetermined({
     required ImageInfo info,
@@ -134,8 +120,7 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       setState(() {
         isLoading = true;
       });
-      interpreter =
-          await Interpreter.fromAsset("assets/ml/fish_detection.tflite");
+      interpreter = await Interpreter.fromAsset("assets/ml/pball_model.tflite");
       setState(() {
         isLoading = false;
       });
@@ -176,11 +161,15 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
             3,
             (c) {
               final pixel = resizedImage.getPixel(x, y);
-              return c == 0
-                  ? pixel.r.toDouble() / 255.0
-                  : c == 1
-                      ? pixel.g.toDouble() / 255.0
-                      : pixel.b.toDouble() / 255.0;
+              double value = 0;
+              if (c == 0) {
+                value = pixel.r.toDouble();
+              } else if (c == 1) {
+                value = pixel.g.toDouble();
+              } else {
+                value = pixel.b.toDouble();
+              }
+              return value / 255.0;
             },
           ),
         ),
@@ -233,7 +222,7 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
                       width: double.infinity,
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.5,
+                          maxHeight: MediaQuery.of(context).size.height * 0.6,
                         ),
                         child: Stack(
                           children: [
