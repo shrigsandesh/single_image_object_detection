@@ -67,6 +67,8 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
   List input = [];
   List output = [];
 
+  var interpreterOptions = InterpreterOptions()..threads = 2;
+
   @override
   void initState() {
     super.initState();
@@ -125,10 +127,12 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       setState(() {
         isLoading = true;
       });
-      pballInterpreter =
-          await Interpreter.fromAsset("assets/ml/pball_model.tflite");
-      fishInterpreter =
-          await Interpreter.fromAsset("assets/ml/fish_detection.tflite");
+      pballInterpreter = await Interpreter.fromAsset(
+          "assets/ml/pball_model.tflite",
+          options: interpreterOptions);
+      fishInterpreter = await Interpreter.fromAsset(
+          "assets/ml/fish_detection.tflite",
+          options: interpreterOptions);
 
       pballIsolate =
           await IsolateInterpreter.create(address: pballInterpreter.address);
