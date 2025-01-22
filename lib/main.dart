@@ -38,9 +38,13 @@ class ObjectDetectionPage extends StatefulWidget {
 }
 
 class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
-  late Interpreter interpreter;
+  late Interpreter pballInterpreter;
+  late Interpreter fishInterpreter;
+
+  late IsolateInterpreter pballIsolate;
+  late IsolateInterpreter fishIsolate;
   bool isLoading = true;
-  Detection? detection;
+  List<Detection> objDetections = [];
 
   final GlobalKey _imageKey = GlobalKey();
   late ImageProvider imageProvider;
@@ -111,7 +115,8 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
   void dispose() {
     final ImageStream stream = imageProvider.resolve(ImageConfiguration.empty);
     stream.removeListener(_imageListener);
-    interpreter.close();
+    fishInterpreter.close();
+    pballInterpreter.close();
     super.dispose();
   }
 
@@ -120,7 +125,15 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       setState(() {
         isLoading = true;
       });
-      interpreter = await Interpreter.fromAsset("assets/ml/pball_model.tflite");
+      pballInterpreter =
+          await Interpreter.fromAsset("assets/ml/pball_model.tflite");
+      fishInterpreter =
+          await Interpreter.fromAsset("assets/ml/fish_detection.tflite");
+
+      pballIsolate =
+          await IsolateInterpreter.create(address: pballInterpreter.address);
+      fishIsolate =
+          await IsolateInterpreter.create(address: fishInterpreter.address);
       setState(() {
         isLoading = false;
       });
@@ -179,9 +192,13 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
     output = List.filled(1 * 300 * 6, 0).reshape([1, 300, 6]);
   }
 
-  Future<void> detect() async {
+  Future<void> detect(Interpreter interpreter, bool pballInterpreter) async {
     try {
-      interpreter.run(input, output);
+      if (pballInterpreter) {
+        await pballIsolate.run(input, output);
+      } else {
+        await fishIsolate.run(input, output);
+      }
 
       final score = output[0][0][4] as double?;
       if (score == null) return;
@@ -190,13 +207,15 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       double x2 = output[0][0][2] * imageDeviceWidth;
       double y2 = output[0][0][3] * imageDeviceHeight;
 
-      detection = Detection(
+      Detection detection = Detection(
         confidence: score,
         rect: Rect.fromPoints(
           Offset(x1, y1),
           Offset(x2, y2),
         ),
       );
+
+      objDetections.add(detection);
 
       setState(() {});
     } catch (e) {
@@ -231,11 +250,14 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
                               image: imageProvider,
                               fit: BoxFit.contain,
                             ),
-                            if (detection != null)
-                              BoundaryBoxBorder(
-                                rect: detection!.rect,
-                                borderColor: Colors.green,
-                                borderWidth: 3,
+                            if (objDetections.isNotEmpty)
+                              ...List.generate(
+                                objDetections.length,
+                                (index) => BoundaryBoxBorder(
+                                  rect: objDetections[index].rect,
+                                  borderColor: Colors.green,
+                                  borderWidth: 3,
+                                ),
                               ),
                           ],
                         ),
@@ -243,8 +265,9 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        detect();
+                      onPressed: () async {
+                        detect(fishInterpreter, false);
+                        detect(pballInterpreter, true);
                       },
                       child: const Text('Detect Objects'),
                     ),
