@@ -30,6 +30,20 @@ class MyApp extends StatelessWidget {
   }
 }
 
+@pragma('vm:entry-point')
+void someFunction(String arg) {
+  Future.delayed(const Duration(seconds: 5), () {
+    log("Running in an isolate with argument : $arg");
+  });
+}
+
+@pragma('vm:entry-point')
+void anotherfunction(String arg) {
+  Future.delayed(const Duration(seconds: 5), () {
+    log("Running in an isolate with : $arg");
+  });
+}
+
 class ObjectDetectionPage extends StatefulWidget {
   const ObjectDetectionPage({super.key});
 
@@ -38,9 +52,10 @@ class ObjectDetectionPage extends StatefulWidget {
 }
 
 class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
-  late Interpreter interpreter;
+  late Interpreter pballInterpreter;
+  late Interpreter fishInterperter;
   bool isLoading = true;
-  Detection? detection;
+  List<Detection> detections = [];
 
   final GlobalKey _imageKey = GlobalKey();
   late ImageProvider imageProvider;
@@ -66,7 +81,7 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
   @override
   void initState() {
     super.initState();
-    imageProvider = const AssetImage("assets/images/proofball.png");
+    imageProvider = const AssetImage("assets/images/img3.png");
     loadModel();
     final ImageStream stream = imageProvider.resolve(ImageConfiguration.empty);
     _imageListener = ImageStreamListener((info, __) {
@@ -90,6 +105,9 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
 
     imageOriginalHeight = info.image.height.toDouble();
     imageOriginalWidth = info.image.width.toDouble();
+    setState(() {
+      isScaledToDevice = true;
+    });
   }
 
   void startRetryUntilSizeDetermined({
@@ -111,7 +129,8 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
   void dispose() {
     final ImageStream stream = imageProvider.resolve(ImageConfiguration.empty);
     stream.removeListener(_imageListener);
-    interpreter.close();
+    pballInterpreter.close();
+    fishInterperter.close();
     super.dispose();
   }
 
@@ -120,7 +139,10 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       setState(() {
         isLoading = true;
       });
-      interpreter = await Interpreter.fromAsset("assets/ml/pball_model.tflite");
+      pballInterpreter =
+          await Interpreter.fromAsset("assets/ml/pball_model.tflite");
+      fishInterperter =
+          await Interpreter.fromAsset('assets/ml/fish_detection.tflite');
       setState(() {
         isLoading = false;
       });
@@ -150,7 +172,9 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       width: 640,
       height: 640,
       interpolation: img.Interpolation.linear,
-    ); // Create input tensor
+    );
+
+    // Create input tensor
     input = List.generate(
       1,
       (index) => List.generate(
@@ -179,7 +203,7 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
     output = List.filled(1 * 300 * 6, 0).reshape([1, 300, 6]);
   }
 
-  Future<void> detect() async {
+  Future<void> detect(Interpreter interpreter) async {
     try {
       interpreter.run(input, output);
 
@@ -190,13 +214,15 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
       double x2 = output[0][0][2] * imageDeviceWidth;
       double y2 = output[0][0][3] * imageDeviceHeight;
 
-      detection = Detection(
+      Detection detection = Detection(
         confidence: score,
         rect: Rect.fromPoints(
           Offset(x1, y1),
           Offset(x2, y2),
         ),
       );
+
+      detections.add(detection);
 
       setState(() {});
     } catch (e) {
@@ -231,20 +257,25 @@ class _ObjectDetectionPageState extends State<ObjectDetectionPage> {
                               image: imageProvider,
                               fit: BoxFit.contain,
                             ),
-                            if (detection != null)
-                              BoundaryBoxBorder(
-                                rect: detection!.rect,
-                                borderColor: Colors.green,
-                                borderWidth: 3,
-                              ),
+                            if (detections.isNotEmpty)
+                              ...List.generate(
+                                detections.length,
+                                (index) => BoundaryBoxBorder(
+                                  rect: detections[index].rect,
+                                  borderColor: Colors.green,
+                                  borderWidth: 3,
+                                ),
+                              )
                           ],
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton(
-                      onPressed: () {
-                        detect();
+                      onPressed: () async {
+                        detections.clear();
+                        detect(fishInterperter);
+                        detect(pballInterpreter);
                       },
                       child: const Text('Detect Objects'),
                     ),
